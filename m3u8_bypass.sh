@@ -91,7 +91,7 @@ done > $tmpdir/$dname/_$fname
 
 echo "concatenating...."
 
-ffmpeg -i $tmpdir/$dname/_$fname -c copy -bsf:a aac_adtstoasc $tmpdir/$outname
+ffmpeg -i $tmpdir/$dname/_$fname -movflags faststart -c copy -bsf:a aac_adtstoasc $tmpdir/$outname
 
 #####
 
