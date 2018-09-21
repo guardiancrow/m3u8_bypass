@@ -11,6 +11,7 @@ oname=
 tmpdir=.
 origin=
 referer=
+resume=0
 
 for OPT in "$@"
 do
@@ -25,6 +26,10 @@ do
       ;;
     -t | --temp)
       tmpdir=$2
+      shift 2
+      ;;
+    -r | --resume)
+      resume=$2
       shift 2
       ;;
     --origin)
@@ -56,7 +61,7 @@ fi
 
 echo "getting original m3u8..."
 
-curl -s -H "Origin: ${origin}" -H "Accept-Encoding: gzip, deflate, br" -H "Accept-Language: en-US,en;q=0.5" -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:60.0) Gecko/20100101 Firefox/60.0" -H "Accept: */*" -H "Referer: ${referer}" -H "Connection: keep-alive" --compressed -o $tmpdir/$fname $uri
+curl -sS -f -H "Origin: ${origin}" -H "Accept-Encoding: gzip, deflate, br" -H "Accept-Language: en-US,en;q=0.5" -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0" -H "Accept: */*" -H "Referer: ${referer}" -H "Connection: keep-alive" --compressed -o $tmpdir/$fname $uri
 
 mkdir $tmpdir/$dname
 
@@ -68,8 +73,12 @@ maxcount=`awk 'BEGIN{c=0} /^http/{c=c+1} END{print c}' ${tmpdir}/${fname}`
 count=1
 
 for u in `awk '/^http/' ${tmpdir}/${fname}` ; do
-  echo "("$count"/"$maxcount"):" $tmpdir/$dname/${u##*/}
-  curl -s -H "Origin: ${origin}" -H "Accept-Encoding: gzip, deflate, br" -H "Accept-Language: en-US,en;q=0.5" -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:60.0) Gecko/20100101 Firefox/60.0" -H "Accept: */*" -H "Referer: ${referer}" -H "Connection: keep-alive" --compressed -o $tmpdir/$dname/${u##*/} $u
+  if [ ${count} -lt ${resume} ]; then
+    echo "("$count"/"$maxcount"): skipping..."
+  else
+    echo "("$count"/"$maxcount"):" $tmpdir/$dname/${u##*/}
+    curl -sS -f -H "Origin: ${origin}" -H "Accept-Encoding: gzip, deflate, br" -H "Accept-Language: en-US,en;q=0.5" -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0" -H "Accept: */*" -H "Referer: ${referer}" -H "Connection: keep-alive" --compressed -o $tmpdir/$dname/${u##*/} $u
+  fi
   count=$((count+1))
 done
 
