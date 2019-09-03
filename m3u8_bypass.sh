@@ -2,7 +2,7 @@
 
 #
 # m3u8_bypass
-# copyright 2018 @guardiancrow
+# copyright 2018 - 2019 @guardiancrow
 # Released under the MIT license
 #
 
@@ -11,6 +11,7 @@ oname=
 tmpdir=.
 origin=
 referer=
+refflag=false
 resume=0
 
 for OPT in "$@"
@@ -38,6 +39,7 @@ do
       ;;
     --referer)
       referer=$2
+	  refflag=true
       shift 2
       ;;
   esac
@@ -61,7 +63,11 @@ fi
 
 echo "getting original m3u8..."
 
-curl -sS -f -H "Origin: ${origin}" -H "Accept-Encoding: gzip, deflate, br" -H "Accept-Language: en-US,en;q=0.5" -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0" -H "Accept: */*" -H "Referer: ${referer}" -H "Connection: keep-alive" --compressed -o $tmpdir/$fname $uri
+if $refflag ; then
+	curl -sS -f -H "Origin: null" -H "Accept-Encoding: gzip, deflate, br" -H "Accept-Language: en-US,en;q=0.5" -H "Accept: */*" -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:68.0) Gecko/20100101 Firefox/68.0" -e "${referer}" --compressed -o $tmpdir/$fname $uri
+else
+	curl -sS -f -H "Origin: null" -H "Accept-Encoding: gzip, deflate, br" -H "Accept-Language: en-US,en;q=0.5" -H "Accept: */*" -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:68.0) Gecko/20100101 Firefox/68.0" --compressed -o $tmpdir/$fname $uri
+fi
 
 mkdir $tmpdir/$dname
 
@@ -77,7 +83,11 @@ for u in `awk '/^http/' ${tmpdir}/${fname}` ; do
     echo "("$count"/"$maxcount"): skipping..."
   else
     echo "("$count"/"$maxcount"):" $tmpdir/$dname/${u##*/}
-    curl -sS -f -H "Origin: ${origin}" -H "Accept-Encoding: gzip, deflate, br" -H "Accept-Language: en-US,en;q=0.5" -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0" -H "Accept: */*" -H "Referer: ${referer}" -H "Connection: keep-alive" --compressed -o $tmpdir/$dname/${u##*/} $u
+	if $refflag ; then
+		curl -sS -f -H "Origin: ${origin}" -H "Accept-Encoding: gzip, deflate, br" -H "Accept-Language: en-US,en;q=0.5" -H "Accept: */*" -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:68.0) Gecko/20100101 Firefox/68.0" -e "${referer}" --compressed -o $tmpdir/$dname/${u##*/} $u
+	else
+		curl -sS -f -H "Origin: ${origin}" -H "Accept-Encoding: gzip, deflate, br" -H "Accept-Language: en-US,en;q=0.5" -H "Accept: */*" -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:68.0) Gecko/20100101 Firefox/68.0" --compressed -o $tmpdir/$dname/${u##*/} $u
+	fi
   fi
   count=$((count+1))
 done
