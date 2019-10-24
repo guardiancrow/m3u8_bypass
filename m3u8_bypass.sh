@@ -47,6 +47,8 @@ done
 
 #echo $uri
 
+ua="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:70.0) Gecko/20100101 Firefox/70.0"
+
 fname=$(basename $uri)
 dname=$(basename $uri .m3u8)
 outname=$dname.mp4
@@ -64,9 +66,9 @@ fi
 echo "getting original m3u8..."
 
 if $refflag ; then
-	curl -sS -f -H "Origin: null" -H "Accept-Encoding: gzip, deflate, br" -H "Accept-Language: en-US,en;q=0.5" -H "Accept: */*" -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:69.0) Gecko/20100101 Firefox/69.0" -e "${referer}" --compressed -o $tmpdir/$fname $uri
+	curl -sS -f -H "Origin: null" -H "Accept-Encoding: gzip, deflate, br" -H "Accept-Language: en-US,en;q=0.5" -H "Accept: */*" -A "${ua}" -e "${referer}" --compressed -o $tmpdir/$fname $uri
 else
-	curl -sS -f -H "Origin: null" -H "Accept-Encoding: gzip, deflate, br" -H "Accept-Language: en-US,en;q=0.5" -H "Accept: */*" -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:69.0) Gecko/20100101 Firefox/69.0" --compressed -o $tmpdir/$fname $uri
+	curl -sS -f -H "Origin: null" -H "Accept-Encoding: gzip, deflate, br" -H "Accept-Language: en-US,en;q=0.5" -H "Accept: */*" -A "${ua}" --compressed -o $tmpdir/$fname $uri
 fi
 
 mkdir $tmpdir/$dname
@@ -84,9 +86,9 @@ for u in `awk '/^http/' ${tmpdir}/${fname}` ; do
   else
     echo "("$count"/"$maxcount"):" $tmpdir/$dname/${u##*/}
 	if $refflag ; then
-		curl -sS -f -H "Origin: ${origin}" -H "Accept-Encoding: gzip, deflate, br" -H "Accept-Language: en-US,en;q=0.5" -H "Accept: */*" -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:69.0) Gecko/20100101 Firefox/69.0" -e "${referer}" --compressed -o $tmpdir/$dname/${u##*/} $u
+		curl -sS -f -H "Origin: ${origin}" -H "Accept-Encoding: gzip, deflate, br" -H "Accept-Language: en-US,en;q=0.5" -H "Accept: */*" -A "${ua}" -e "${referer}" --compressed -o $tmpdir/$dname/${u##*/} $u
 	else
-		curl -sS -f -H "Origin: ${origin}" -H "Accept-Encoding: gzip, deflate, br" -H "Accept-Language: en-US,en;q=0.5" -H "Accept: */*" -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:69.0) Gecko/20100101 Firefox/69.0" --compressed -o $tmpdir/$dname/${u##*/} $u
+		curl -sS -f -H "Origin: ${origin}" -H "Accept-Encoding: gzip, deflate, br" -H "Accept-Language: en-US,en;q=0.5" -H "Accept: */*" -A "${ua}" --compressed -o $tmpdir/$dname/${u##*/} $u
 	fi
   fi
   count=$((count+1))
