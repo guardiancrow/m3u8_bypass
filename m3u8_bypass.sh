@@ -2,17 +2,21 @@
 
 #
 # m3u8_bypass
-# copyright 2018 - 2019 @guardiancrow
+# copyright 2018 - 2020 @guardiancrow
 # Released under the MIT license
 #
 
 uri=
 oname=
 tmpdir=.
-origin=
+origin=null
 referer=
 refflag=false
 resume=0
+prefix=$RANDOM
+no_prefix=true
+skip_if_exist=false
+check_files=false
 
 for OPT in "$@"
 do
@@ -42,33 +46,53 @@ do
 	  refflag=true
       shift 2
       ;;
+	-pn | --prefix-number)
+	  prefix=$2
+	  shift 2
+	  ;;
+	-p | --append-prefix)
+	  no_prefix=false
+	  shift 1
+	  ;;
+	-s | --skip-if-exist)
+	  skip_if_exist=true
+	  shift 1
+	  ;;
+	-c | --check-files)
+	  check_files=true
+	  shift 1
+	  ;;
   esac
 done
 
-#echo $uri
+ua="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:74.0) Gecko/20100101 Firefox/74.0"
 
-ua="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:70.0) Gecko/20100101 Firefox/70.0"
+if $no_prefix ; then
+  fname=$(basename $uri)
+  dname=$(basename $uri .m3u8)
+else
+  fname=$prefix-$(basename $uri)
+  dname=$prefix-$(basename $uri .m3u8)
+fi
 
-fname=$(basename $uri)
-dname=$(basename $uri .m3u8)
 outname=$dname.mp4
 
 if [ -n ${oname} ]; then
   outname=$oname
 fi
 
-#echo $outname
-#echo $tmpdir"/"$fname
-#echo $tmpdir"/"$dname"/"_$fname
-
 #####
 
 echo "getting original m3u8..."
 
-if $refflag ; then
-	curl -sS -f -H "Origin: null" -H "Accept-Encoding: gzip, deflate, br" -H "Accept-Language: en-US,en;q=0.5" -H "Accept: */*" -A "${ua}" -e "${referer}" --compressed -o $tmpdir/$fname $uri
+if [ $skip_if_exist ] && [ -e $tmpdir/$fname ]; then
+  echo "skipping... get original m3u8"
 else
-	curl -sS -f -H "Origin: null" -H "Accept-Encoding: gzip, deflate, br" -H "Accept-Language: en-US,en;q=0.5" -H "Accept: */*" -A "${ua}" --compressed -o $tmpdir/$fname $uri
+  if $refflag ; then
+    curl -sS -f -H "Origin: null" -H "Accept-Encoding: gzip, deflate, br" -H "Accept-Language: en-US,en;q=0.9" -H "Accept: */*" -A "${ua}" -e "${referer}" --compressed -o $tmpdir/$fname $uri
+  else
+    curl -sS -f -H "Origin: null" -H "Accept-Encoding: gzip, deflate, br" -H "Accept-Language: en-US,en;q=0.9" -H "Accept: */*" -A "${ua}" --compressed -o $tmpdir/$fname $uri
+  fi
 fi
 
 mkdir $tmpdir/$dname
@@ -83,17 +107,30 @@ count=1
 for u in `awk '/^http/' ${tmpdir}/${fname}` ; do
   if [ ${count} -lt ${resume} ]; then
     echo "("$count"/"$maxcount"): skipping..."
+  elif [ $skip_if_exist ] && [ -e $tmpdir/$dname/${u##*/} ]; then
+	echo "("$count"/"$maxcount"): skipping... " $tmpdir/$dname/${u##*/}
   else
     echo "("$count"/"$maxcount"):" $tmpdir/$dname/${u##*/}
-	if $refflag ; then
-		curl -sS -f -H "Origin: ${origin}" -H "Accept-Encoding: gzip, deflate, br" -H "Accept-Language: en-US,en;q=0.5" -H "Accept: */*" -A "${ua}" -e "${referer}" --compressed -o $tmpdir/$dname/${u##*/} $u
-	else
-		curl -sS -f -H "Origin: ${origin}" -H "Accept-Encoding: gzip, deflate, br" -H "Accept-Language: en-US,en;q=0.5" -H "Accept: */*" -A "${ua}" --compressed -o $tmpdir/$dname/${u##*/} $u
-	fi
+    if $refflag ; then
+      curl -sS -f -H "Origin: ${origin}" -H "Accept-Encoding: gzip, deflate, br" -H "Accept-Language: en-US,en;q=0.9" -H "Accept: */*" -A "${ua}" -e "${referer}" --compressed -o $tmpdir/$dname/${u##*/} $u
+    else
+      curl -sS -f -H "Origin: ${origin}" -H "Accept-Encoding: gzip, deflate, br" -H "Accept-Language: en-US,en;q=0.9" -H "Accept: */*" -A "${ua}" --compressed -o $tmpdir/$dname/${u##*/} $u
+    fi
   fi
   count=$((count+1))
 done
 
+####
+
+if $check_files ; then
+  echo "checking downloaded files.."
+  for u in `awk '/^http/' ${tmpdir}/${fname}` ; do
+  	if  [ ! -e $tmpdir/$dname/${u##*/} ]; then
+	  echo "file not found:" $tmpdir/$dname/${u##*/}
+	  exit
+	fi
+  done
+fi
 
 #####
 
