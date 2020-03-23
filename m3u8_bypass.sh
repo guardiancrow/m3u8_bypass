@@ -93,6 +93,10 @@ else
   else
     curl -sS -f -H "Origin: null" -H "Accept-Encoding: gzip, deflate, br" -H "Accept-Language: en-US,en;q=0.9" -H "Accept: */*" -A "${ua}" --compressed -o $tmpdir/$fname $uri
   fi
+  if [ $? -gt 0 ] && [ -e $tmpdir/$fname ]; then
+    rm $tmpdir/$fname
+    exit 1
+  fi
 fi
 
 mkdir $tmpdir/$dname
@@ -116,18 +120,22 @@ for u in `awk '/^http/' ${tmpdir}/${fname}` ; do
     else
       curl -sS -f -H "Origin: ${origin}" -H "Accept-Encoding: gzip, deflate, br" -H "Accept-Language: en-US,en;q=0.9" -H "Accept: */*" -A "${ua}" --compressed -o $tmpdir/$dname/${u##*/} $u
     fi
+    if [ $? -gt 0 ] && [ -e $tmpdir/$dname/${u##*/} ]; then
+      rm $tmpdir/$dname/${u##*/}
+      exit 1
+    fi
   fi
   count=$((count+1))
 done
 
-####
+#####
 
 if $check_files ; then
   echo "checking downloaded files.."
   for u in `awk '/^http/' ${tmpdir}/${fname}` ; do
   	if  [ ! -e $tmpdir/$dname/${u##*/} ]; then
 	  echo "file not found:" $tmpdir/$dname/${u##*/}
-	  exit
+	  exit 2
 	fi
   done
 fi
