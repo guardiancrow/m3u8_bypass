@@ -116,7 +116,7 @@ if [ $add_path ]; then
   add_uri=$(dirname $uri)
 
   echo "downloading sources..."
-  maxcount=`awk 'BEGIN{c=0} /^http/{c=c+1} END{print c}' ${tmpdir}/${fname}`
+  maxcount=`awk 'BEGIN{c=0} !/^#/{c=c+1} END{print c}' ${tmpdir}/${fname}`
   count=1
 
   for u in `awk '!/^#/' ${tmpdir}/${fname}` ; do
