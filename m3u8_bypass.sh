@@ -2,7 +2,7 @@
 
 #
 # m3u8_bypass
-# copyright 2018 - 2020 @guardiancrow
+# copyright 2018 - 2021 @guardiancrow
 # Released under the MIT license
 #
 
@@ -17,6 +17,7 @@ prefix=$RANDOM
 no_prefix=true
 skip_if_exist=false
 check_files=false
+add_path=false
 
 for OPT in "$@"
 do
@@ -43,29 +44,33 @@ do
       ;;
     --referer)
       referer=$2
-	  refflag=true
+	    refflag=true
       shift 2
       ;;
-	-pn | --prefix-number)
-	  prefix=$2
-	  shift 2
-	  ;;
-	-p | --append-prefix)
-	  no_prefix=false
-	  shift 1
-	  ;;
-	-s | --skip-if-exist)
-	  skip_if_exist=true
-	  shift 1
-	  ;;
-	-c | --check-files)
-	  check_files=true
-	  shift 1
-	  ;;
+	  -pn | --prefix-number)
+	    prefix=$2
+	    shift 2
+	    ;;
+  	-p | --append-prefix)
+	    no_prefix=false
+	    shift 1
+	    ;;
+	  -s | --skip-if-exist)
+	    skip_if_exist=true
+	    shift 1
+	    ;;
+	  -c | --check-files)
+	    check_files=true
+	    shift 1
+	    ;;
+  	-a | --attach-path)
+	    add_path=true
+	    shift 1
+	    ;;
   esac
 done
 
-ua="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:74.0) Gecko/20100101 Firefox/74.0"
+ua="Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:85.0) Gecko/20100101 Firefox/85.0"
 
 if $no_prefix ; then
   fname=$(basename $uri)
@@ -99,59 +104,102 @@ else
   fi
 fi
 
-mkdir $tmpdir/$dname
-
-#####
-
-echo "downloading sources..."
-
-maxcount=`awk 'BEGIN{c=0} /^http/{c=c+1} END{print c}' ${tmpdir}/${fname}`
-count=1
-
-for u in `awk '/^http/' ${tmpdir}/${fname}` ; do
-  if [ ${count} -lt ${resume} ]; then
-    echo "("$count"/"$maxcount"): skipping..."
-  elif [ $skip_if_exist ] && [ -e $tmpdir/$dname/${u##*/} ]; then
-	echo "("$count"/"$maxcount"): skipping... " $tmpdir/$dname/${u##*/}
-  else
-    echo "("$count"/"$maxcount"):" $tmpdir/$dname/${u##*/}
-    if $refflag ; then
-      curl -sS -f -H "Origin: ${origin}" -H "Accept-Encoding: gzip, deflate, br" -H "Accept-Language: en-US,en;q=0.9" -H "Accept: */*" -A "${ua}" -e "${referer}" --compressed -o $tmpdir/$dname/${u##*/} $u
-    else
-      curl -sS -f -H "Origin: ${origin}" -H "Accept-Encoding: gzip, deflate, br" -H "Accept-Language: en-US,en;q=0.9" -H "Accept: */*" -A "${ua}" --compressed -o $tmpdir/$dname/${u##*/} $u
-    fi
-    if [ $? -gt 0 ] && [ -e $tmpdir/$dname/${u##*/} ]; then
-      rm $tmpdir/$dname/${u##*/}
-      exit 1
-    fi
-  fi
-  count=$((count+1))
-done
-
-#####
-
-if $check_files ; then
-  echo "checking downloaded files.."
-  for u in `awk '/^http/' ${tmpdir}/${fname}` ; do
-  	if  [ ! -e $tmpdir/$dname/${u##*/} ]; then
-	  echo "file not found:" $tmpdir/$dname/${u##*/}
-	  exit 2
-	fi
-  done
+if [ -d $tmpdor/$dname ]; then
+  echo "skipping... create directry"
+else
+  mkdir $tmpdir/$dname
 fi
 
-#####
+##### add_path process (attach an absolute path to each)
 
-echo "rewriting m3u8..."
+if [ $add_path ]; then
+  add_uri=$(dirname $uri)
 
-cat $tmpdir/$fname | while read line
-do
-  if [[ $line =~ ^http ]]; then
-    echo ${line##*/}
-	continue
+  echo "downloading sources..."
+  maxcount=`awk 'BEGIN{c=0} /^http/{c=c+1} END{print c}' ${tmpdir}/${fname}`
+  count=1
+
+  for u in `awk '!/^#/' ${tmpdir}/${fname}` ; do
+    if [ ${count} -lt ${resume} ]; then
+      echo "("$count"/"$maxcount"): skipping..."
+    elif [ $skip_if_exist ] && [ -e $tmpdir/$dname/${u##*/} ]; then
+	    echo "("$count"/"$maxcount"): skipping... " ${u##*/}
+    else
+      echo "("$count"/"$maxcount"):" $add_uri/$u "->" $tmpdir/$dname/${u##*/}
+      if $refflag ; then
+        curl -sS -f -H "Origin: ${origin}" -H "Accept-Encoding: gzip, deflate, br" -H "Accept-Language: en-US,en;q=0.9" -H "Accept: */*" -A "${ua}" -e "${referer}" --compressed -o $tmpdir/$dname/${u##*/} $add_uri/$u
+      else
+        curl -sS -f -H "Origin: ${origin}" -H "Accept-Encoding: gzip, deflate, br" -H "Accept-Language: en-US,en;q=0.9" -H "Accept: */*" -A "${ua}" --compressed -o $tmpdir/$dname/${u##*/} $add_uri/$u
+      fi
+      if [ $? -gt 0 ] && [ -e $tmpdir/$dname/${u##*/} ]; then
+        rm $tmpdir/$dname/${u##*/}
+        exit 1
+      fi
+    fi
+    count=$((count+1))
+  done
+
+  if $check_files ; then
+    echo "checking downloaded files.."
+    for u in `awk '!/^#/' ${tmpdir}/${fname}` ; do
+      if  [ ! -e $tmpdir/$dname/${u##*/} ]; then
+        echo "file not found:" $tmpdir/$dname/${u##*/}
+        exit 2
+      fi
+    done
   fi
-  echo $line
-done > $tmpdir/$dname/_$fname
+
+  echo "rewriting m3u8..."
+
+  cp $tmpdir/$fname $tmpdir/$dname/_$fname
+
+else  ##### without add_path process
+
+  echo "downloading sources..."
+  maxcount=`awk 'BEGIN{c=0} /^http/{c=c+1} END{print c}' ${tmpdir}/${fname}`
+  count=1
+
+  for u in `awk '/^http/' ${tmpdir}/${fname}` ; do
+    if [ ${count} -lt ${resume} ]; then
+      echo "("$count"/"$maxcount"): skipping..."
+    elif [ $skip_if_exist ] && [ -e $tmpdir/$dname/${u##*/} ]; then
+    echo "("$count"/"$maxcount"): skipping... " $tmpdir/$dname/${u##*/}
+    else
+      echo "("$count"/"$maxcount"):" $tmpdir/$dname/${u##*/}
+      if $refflag ; then
+        curl -sS -f -H "Origin: ${origin}" -H "Accept-Encoding: gzip, deflate, br" -H "Accept-Language: en-US,en;q=0.9" -H "Accept: */*" -A "${ua}" -e "${referer}" --compressed -o $tmpdir/$dname/${u##*/} $u
+      else
+        curl -sS -f -H "Origin: ${origin}" -H "Accept-Encoding: gzip, deflate, br" -H "Accept-Language: en-US,en;q=0.9" -H "Accept: */*" -A "${ua}" --compressed -o $tmpdir/$dname/${u##*/} $u
+      fi
+      if [ $? -gt 0 ] && [ -e $tmpdir/$dname/${u##*/} ]; then
+        rm $tmpdir/$dname/${u##*/}
+        exit 1
+      fi
+    fi
+    count=$((count+1))
+  done
+
+  if $check_files ; then
+    echo "checking downloaded files.."
+    for u in `awk '/^http/' ${tmpdir}/${fname}` ; do
+      if  [ ! -e $tmpdir/$dname/${u##*/} ]; then
+      echo "file not found:" $tmpdir/$dname/${u##*/}
+      exit 2
+    fi
+    done
+  fi
+
+  echo "rewriting m3u8..."
+
+  cat $tmpdir/$fname | while read line
+  do
+    if [[ $line =~ ^http ]]; then
+      echo ${line##*/}
+    continue
+    fi
+    echo $line
+  done > $tmpdir/$dname/_$fname
+fi
 
 #####
 
